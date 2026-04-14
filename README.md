@@ -287,7 +287,7 @@
 
 <script>
   // ==================== OPENWEATHERMAP KONFIGURĀCIJA ====================
-  const API_KEY = 'ef8adfe42305ec8cf0e57ddfbad6cdbb';
+  const API_KEY = 'c43d82886b01f58c9754b116e45751b7';
   const LAT = 56.9496;      // Rīgas platums
   const LON = 24.1052;      // Rīgas garums
   
