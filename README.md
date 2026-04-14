@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="lv">
 <head>
   <meta charset="UTF-8">
@@ -287,12 +286,16 @@
 </div>
 
 <script>
-  // GOOGLE FOTO ALBUMA URL (JŪSU NORĀDĪTAIS)
+  // ==================== OPENWEATHERMAP KONFIGURĀCIJA ====================
+  const API_KEY = 'ef8adfe42305ec8cf0e57ddfbad6cdbb';
+  const LAT = 56.9496;      // Rīgas platums
+  const LON = 24.1052;      // Rīgas garums
+  
+  // GOOGLE FOTO ALBUMA URL
   const GOOGLE_ALBUM_URL = 'https://photos.app.goo.gl/XTHecbbYbnKTNHzy6';
   
   // Saglabāsim atrastās attēlu saites
   let currentImageUrls = [];
-  let rotationInterval = null;
   
   // ----------------------------- DATUMS -------------------------
   function updateDate() {
@@ -302,100 +305,173 @@
     document.getElementById('currentDate').innerHTML = formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }
   
-  // ----------------------------- LAIKAPSTĀKĻI (demo) -----------------
-  function getCurrentWeather() {
-    const hour = new Date().getHours();
-    const weatherOptions = [
-      { main: "Saulains", icon: "☀️", temp: 22, feel: 21, desc: "Lieliska diena saules paneļiem" },
-      { main: "Daļēji mākoņains", icon: "⛅", temp: 19, feel: 18, desc: "Saule spīd cauri mākoņiem" },
-      { main: "Skaidrs", icon: "🌞", temp: 24, feel: 23, desc: "Bez mākoņiem" }
-    ];
-    let index = Math.floor(hour / 8) % weatherOptions.length;
-    return weatherOptions[index];
+  // ----------------------------- LAIKAPSTĀKĻI (REĀLI NO OPENWEATHER) -----------------
+  async function fetchCurrentWeather() {
+    try {
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${LAT}&lon=${LON}&appid=${API_KEY}&units=metric&lang=lv`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Kļūda iegūstot pašreizējos laikapstākļus:', error);
+      return null;
+    }
   }
   
-  function displayCurrentWeather() {
-    const weather = getCurrentWeather();
+  async function fetchHourlyForecast() {
+    try {
+      const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&appid=${API_KEY}&units=metric&lang=lv`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Kļūda iegūstot prognozi:', error);
+      return null;
+    }
+  }
+  
+  // Attēla ikonas URL no OpenWeather
+  function getWeatherIconUrl(iconCode) {
+    return `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+  }
+  
+  async function displayCurrentWeather() {
     const container = document.getElementById('currentWeatherBlock');
+    container.innerHTML = '<div class="loading">🌤️ Ielādē laikapstākļus...</div>';
+    
+    const weather = await fetchCurrentWeather();
+    if (!weather) {
+      container.innerHTML = '<div class="error-message">❌ Nevar ielādēt laikapstākļus. Pārbaudiet API atslēgu vai interneta savienojumu.</div>';
+      return;
+    }
+    
+    const temp = Math.round(weather.main.temp);
+    const feelsLike = Math.round(weather.main.feels_like);
+    const description = weather.weather[0].description;
+    const iconCode = weather.weather[0].icon;
+    const main = weather.weather[0].main;
+    
+    // Latviski apraksti saules paneļiem
+    let solarTip = "";
+    if (main === "Clear") solarTip = "☀️ Lieliska diena saules paneļiem!";
+    else if (main === "Clouds") solarTip = "⛅ Daļēja saules enerģija - paneļi strādās ar vidēju efektivitāti";
+    else if (main === "Rain") solarTip = "🌧️ Lietus diena - saules paneļu ražība būs zema";
+    else if (main === "Snow") solarTip = "❄️ Sniegs - attīriet paneļus, lai uzlabotu efektivitāti";
+    else solarTip = "🌍 Normāli apstākļi saules paneļiem";
+    
     container.innerHTML = `
       <div class="weather-big">
-        <div class="weather-icon">${weather.icon}</div>
-        <div class="temp">${weather.temp}°C</div>
-        <div class="desc"><strong>${weather.main}</strong><br>${weather.desc}</div>
+        <div class="weather-icon"><img src="${getWeatherIconUrl(iconCode)}" alt="${description}" style="width:60px; height:60px;"></div>
+        <div class="temp">${temp}°C</div>
+        <div class="desc"><strong>${description.charAt(0).toUpperCase() + description.slice(1)}</strong><br>${solarTip}</div>
       </div>
-      <div style="margin-left: auto; font-size: 0.9rem;">🌡️ Jūtas kā ${weather.feel}°C</div>
+      <div style="margin-left: auto; font-size: 0.9rem;">
+        🌡️ Jūtas kā ${feelsLike}°C<br>
+        💧 Mitrums: ${weather.main.humidity}%<br>
+        💨 Vējš: ${Math.round(weather.wind.speed)} m/s
+      </div>
     `;
   }
   
-  function get3HourForecast() {
-    const baseTemp = getCurrentWeather().temp;
-    const forecasts = [];
-    for (let i = 1; i <= 3; i++) {
-      forecasts.push({
-        time: `${(new Date().getHours() + i) % 24}:00`,
-        icon: i === 2 ? "⛅" : "☀️",
-        temp: baseTemp + (i === 3 ? 2 : 1),
-        desc: i === 1 ? "Saule stiprinās" : i === 2 ? "Mākoņu spraugas" : "Maksimālais starojums"
-      });
-    }
-    return forecasts;
-  }
-  
-  function render3Hourly() {
-    const hourlyData = get3HourForecast();
+  async function render3Hourly() {
     const container = document.getElementById('hourly3h');
-    container.innerHTML = hourlyData.map(h => `
-      <div class="hour-item">
-        <div class="hour-time">${h.time}</div>
-        <div style="font-size:1.8rem;">${h.icon}</div>
-        <div>${h.temp}°C</div>
-        <small>${h.desc}</small>
-      </div>
-    `).join('');
+    container.innerHTML = '<div class="loading">⏳ Ielādē prognozi...</div>';
+    
+    const forecast = await fetchHourlyForecast();
+    if (!forecast || !forecast.list) {
+      container.innerHTML = '<div class="error-message">❌ Nevar ielādēt stundu prognozi</div>';
+      return;
+    }
+    
+    // Ņemam nākamās 3 prognozes (ik pēc 3 stundām)
+    const nextForecasts = forecast.list.slice(0, 3);
+    
+    container.innerHTML = nextForecasts.map(item => {
+      const time = new Date(item.dt * 1000);
+      const hours = time.getHours();
+      const temp = Math.round(item.main.temp);
+      const iconCode = item.weather[0].icon;
+      const desc = item.weather[0].description;
+      
+      return `
+        <div class="hour-item">
+          <div class="hour-time">${hours}:00</div>
+          <div style="font-size:2rem;"><img src="${getWeatherIconUrl(iconCode)}" alt="${desc}" style="width:40px; height:40px;"></div>
+          <div>${temp}°C</div>
+          <small>${desc.substring(0, 15)}</small>
+        </div>
+      `;
+    }).join('');
   }
   
-  function renderThreeDays() {
-    const days = ['Rīt', 'Parīt', 'Pēc 3 dienām'];
+  async function renderThreeDays() {
     const container = document.getElementById('threeDaysForecast');
-    container.innerHTML = days.map((day, i) => `
-      <div class="day-card">
-        <strong>${day}</strong>
-        <div style="font-size:2rem;">${i === 1 ? "🌤️" : "☀️"}</div>
-        <div>${18 + i}° / ${10 + i}°</div>
-        <small>${i === 0 ? "Saulains" : i === 1 ? "Mākoņains" : "Skaidrs"}</small>
-      </div>
-    `).join('');
+    container.innerHTML = '<div class="loading">📅 Ielādē dienu prognozi...</div>';
+    
+    const forecast = await fetchHourlyForecast();
+    if (!forecast || !forecast.list) {
+      container.innerHTML = '<div class="error-message">❌ Nevar ielādēt dienu prognozi</div>';
+      return;
+    }
+    
+    // Grupējam pēc dienām
+    const dailyData = {};
+    forecast.list.forEach(item => {
+      const date = new Date(item.dt * 1000);
+      const dayKey = date.toLocaleDateString('lv-LV');
+      if (!dailyData[dayKey]) {
+        dailyData[dayKey] = {
+          temps: [],
+          icons: [],
+          descriptions: []
+        };
+      }
+      dailyData[dayKey].temps.push(item.main.temp);
+      dailyData[dayKey].icons.push(item.weather[0].icon);
+      dailyData[dayKey].descriptions.push(item.weather[0].description);
+    });
+    
+    // Ņemam nākamās 3 dienas (izlaižot šodienu)
+    const days = Object.keys(dailyData).slice(1, 4);
+    const dayNames = ['Rīt', 'Parīt', 'Pēc 3 dienām'];
+    
+    container.innerHTML = days.map((day, index) => {
+      const data = dailyData[day];
+      const avgTemp = Math.round(data.temps.reduce((a, b) => a + b, 0) / data.temps.length);
+      const minTemp = Math.round(Math.min(...data.temps));
+      const maxTemp = Math.round(Math.max(...data.temps));
+      const mostFrequentIcon = data.icons[Math.floor(data.icons.length / 2)];
+      
+      return `
+        <div class="day-card">
+          <strong>${dayNames[index]}</strong>
+          <div style="font-size:2rem;"><img src="${getWeatherIconUrl(mostFrequentIcon)}" alt="" style="width:45px; height:45px;"></div>
+          <div>${maxTemp}° / ${minTemp}°</div>
+          <small>Vid: ${avgTemp}°C</small>
+        </div>
+      `;
+    }).join('');
   }
   
   // ----------------------------- GOOGLE FOTO INTEGRĀCIJA -----------------
-  // Šī funkcija mēģina iegūt attēlu saites no Google foto albuma
-  // Izmanto CORS starpniekserveri, lai apietu ierobežojumus (pagaidu risinājums)
   async function fetchGooglePhotos() {
     const container = document.getElementById('googlePhotosContainer');
     container.innerHTML = '<div class="loading">🔄 Mēģinu ielādēt Google foto albumu...</div>';
     
     try {
-      // Izmantojam CORS proxy, lai varētu piekļūt Google lapas saturam
-      // Šis ir publisks CORS proxy demonstrācijai - reālā projektā ieteicams savs serveris
       const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(GOOGLE_ALBUM_URL);
-      
       const response = await fetch(proxyUrl);
       const data = await response.json();
       
       if (data && data.contents) {
-        // Meklējam attēlu saites HTML saturā
         const html = data.contents;
-        
-        // Google foto albumos attēli bieži ir šādā formātā:
-        // "https://lh3.googleusercontent.com/..." vai "https://lh3.googleusercontent.com/..."
         const imgRegex = /https:\/\/lh3\.googleusercontent\.com\/[a-zA-Z0-9\-_]+/g;
         const matches = html.match(imgRegex);
         
         if (matches && matches.length > 0) {
-          // Unikālas saites
           currentImageUrls = [...new Set(matches)];
-          
-          // Pievienojam parametru, lai iegūtu saprātīgu izmēru
           currentImageUrls = currentImageUrls.map(url => url + '=w400-h300');
           
           if (currentImageUrls.length > 0) {
@@ -416,13 +492,11 @@
           ⚠️ Neizdevās ielādēt attēlus no Google foto albuma.<br>
           <strong>Iespējamie iemesli:</strong><br>
           • Albums var būt privāts vai nav publiski pieejams<br>
-          • Google bloķē pieprasījumus no citām vietnēm (CORS politika)<br>
-          • <strong>Risinājums:</strong> Lūdzu, pārliecinieties, ka albums ir publiski pieejams (koplietošanas iestatījumi)<br><br>
-          <small>🖼️ Alternatīvi - izmantoju demonstrācijas attēlus</small>
+          • Google bloķē pieprasījumus no citām vietnēm (CORS politika)<br><br>
+          <small>🖼️ Tiek rādīti demonstrācijas attēli</small>
         </div>
         <div class="gallery-grid" id="fallbackGallery"></div>
       `;
-      // Pievienojam alternatīvos attēlus, lai galerija nebūtu tukša
       showFallbackImages();
     }
   }
@@ -434,9 +508,7 @@
       return;
     }
     
-    // Parādām pirmos 12 attēlus (lai nepārslogotu)
     const imagesToShow = currentImageUrls.slice(0, 12);
-    
     const galleryHtml = `
       <div class="gallery-grid">
         ${imagesToShow.map((url, index) => `
@@ -447,21 +519,19 @@
         `).join('')}
       </div>
     `;
-    
     container.innerHTML = galleryHtml;
   }
   
   function showFallbackImages() {
     const fallbackContainer = document.getElementById('fallbackGallery');
     if (fallbackContainer) {
-      // Alternatīvi attēli ar saules tēmu
       const fallbackImages = [
-        'https://picsum.photos/id/29/400/300',  // saulains ainava
-        'https://picsum.photos/id/30/400/300',  // saulriets
-        'https://picsum.photos/id/116/400/300', // saule pār kalniem
-        'https://picsum.photos/id/155/400/300', // saules stari
-        'https://picsum.photos/id/158/400/300', // saulriets pilsētā
-        'https://picsum.photos/id/169/400/300'  // saulains lauks
+        'https://picsum.photos/id/29/400/300',
+        'https://picsum.photos/id/30/400/300',
+        'https://picsum.photos/id/116/400/300',
+        'https://picsum.photos/id/155/400/300',
+        'https://picsum.photos/id/158/400/300',
+        'https://picsum.photos/id/169/400/300'
       ];
       
       fallbackContainer.innerHTML = fallbackImages.map((url, i) => `
@@ -473,7 +543,6 @@
     }
   }
   
-  // Atjauno Google foto attēlus
   function refreshGooglePhotos() {
     fetchGooglePhotos();
   }
@@ -506,11 +575,11 @@
   }
   
   // ----------------------------- INICIALIZĀCIJA -----------------
-  function init() {
+  async function init() {
     updateDate();
-    displayCurrentWeather();
-    render3Hourly();
-    renderThreeDays();
+    await displayCurrentWeather();
+    await render3Hourly();
+    await renderThreeDays();
     generateWeeklyPlan();
     
     // Ielādē Google foto attēlus
@@ -519,15 +588,15 @@
     // Atjauno ik pēc 5 minūtēm
     setInterval(() => {
       refreshGooglePhotos();
-    }, 300000); // 5 minūtes
+    }, 300000);
     
-    // Laikapstākļu atjaunošana
-    setInterval(() => {
-      displayCurrentWeather();
-      render3Hourly();
-      renderThreeDays();
+    // Laikapstākļu atjaunošana ik pēc 30 minūtēm (OpenWeather bezmaksas plānā ierobežojumi)
+    setInterval(async () => {
+      await displayCurrentWeather();
+      await render3Hourly();
+      await renderThreeDays();
       updateDate();
-    }, 3600000);
+    }, 1800000); // 30 minūtes
   }
   
   init();
