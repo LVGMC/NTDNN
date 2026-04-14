@@ -47,7 +47,6 @@
     }
     .weather-big { display: flex; align-items: center; gap: 12px; }
     .temp { font-size: 2.2rem; font-weight: 700; }
-    .weather-icon { font-size: 3rem; }
 
     .hour-cards, .days-forecast { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px; }
     .hour-item, .day-card { background: #f9f3e2; border-radius: 1.2rem; padding: 10px 16px; text-align: center; flex: 1; min-width: 80px; }
@@ -67,7 +66,6 @@
 
     .loading { text-align: center; padding: 40px; font-size: 1.1rem; color: #b45309; }
     .error-message { background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; border-radius: 1rem; margin: 20px 0; color: #991b1b; }
-    .warning-message { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 1rem; margin: 20px 0; color: #92400e; }
     .debug { margin-top: 12px; font-size: 0.85rem; color: #111827; background: rgba(0,0,0,0.05); padding: 10px 12px; border-radius: 12px; white-space: pre-wrap; }
 
     @media (max-width: 780px) {
@@ -87,11 +85,7 @@
   <div class="dashboard">
     <div class="weekly-plan">
       <h2>📋 Nedēļas plāns</h2>
-      <div class="plan-list" id="weeklyPlanList">
-        <div class="plan-day"><strong>Pirmdiena</strong><p>🧹 Saules paneļu tīrīšana un pārbaude</p></div>
-        <div class="plan-day"><strong>Otrdiena</strong><p>🔋 Bateriju uzlādes optimizācija</p></div>
-        <div class="plan-day"><strong>Trešdiena</strong><p>📊 Enerģijas patēriņa analīze</p></div>
-      </div>
+      <div class="plan-list" id="weeklyPlanList"></div>
     </div>
 
     <div class="main-content">
@@ -124,21 +118,17 @@
           <div class="loading">🖼️ Ielādē attēlus...</div>
         </div>
       </div>
-
     </div>
   </div>
 
 <script>
 (() => {
   // ==========================================
-  // KONFIGURĀCIJA - IEVADI SAVU API ATSLĒGU!
+  // TAVA OPENWEATHERMAP API ATSLĒGA
   // ==========================================
-  const API_KEY = 'TAVA_API_ATSLEGA'; // ← Nomaini uz savu OpenWeatherMap API atslēgu
+  const API_KEY = 'c43d82886b01f58c9754b116e45751b7';
   const LAT = 56.9496;
   const LON = 24.1052;
-
-  // Fallback demo dati, ja API nestrādā
-  const DEMO_MODE = API_KEY === 'TAVA_API_ATSLEGA' || API_KEY.length < 20;
 
   // ==========================================
   // PALĪGFUNKCIJAS
@@ -167,49 +157,14 @@
     $('currentDate').textContent = formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }
 
-  function getWeatherEmoji(main) {
-    const emojis = {
-      'Clear': '☀️',
-      'Clouds': '☁️',
-      'Rain': '🌧️',
-      'Drizzle': '🌦️',
-      'Thunderstorm': '⛈️',
-      'Snow': '❄️',
-      'Mist': '🌫️',
-      'Fog': '🌫️'
-    };
-    return emojis[main] || '🌤️';
-  }
-
-  // ==========================================
-  // DEMO/FALLBACK DATI
-  // ==========================================
-  function getDemoCurrentWeather() {
-    return {
-      main: { temp: 18, feels_like: 17, humidity: 65 },
-      weather: [{ main: 'Clear', description: 'skaidrs', icon: '01d' }],
-      wind: { speed: 3.5 }
-    };
-  }
-
-  function getDemoForecast() {
-    const baseTime = Math.floor(Date.now() / 1000);
-    const list = [];
-    for (let i = 0; i < 8; i++) {
-      list.push({
-        dt: baseTime + (i * 3600 * 3),
-        main: { temp: 15 + Math.random() * 8 },
-        weather: [{ main: i % 3 === 0 ? 'Clear' : 'Clouds', description: i % 3 === 0 ? 'skaidrs' : 'mākoņains', icon: i % 3 === 0 ? '01d' : '03d' }]
-      });
-    }
-    return { list };
+  function getWeatherIconUrl(icon) {
+    return `https://openweathermap.org/img/wn/${icon}@2x.png`;
   }
 
   // ==========================================
   // API FUNKCIJAS
   // ==========================================
   async function fetchCurrentWeather() {
-    if (DEMO_MODE) return getDemoCurrentWeather();
     const url = `https://api.openweathermap.org/data/2.5/weather?lat=${LAT}&lon=${LON}&appid=${API_KEY}&units=metric&lang=lv`;
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -217,7 +172,6 @@
   }
 
   async function fetchForecast() {
-    if (DEMO_MODE) return getDemoForecast();
     const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&appid=${API_KEY}&units=metric&lang=lv`;
     const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -229,14 +183,15 @@
   // ==========================================
   async function displayCurrentWeather() {
     const container = $('currentWeatherBlock');
+    container.innerHTML = `<div class="loading">🌤️ Ielādē laikapstākļus…</div>`;
 
     try {
       const w = await fetchCurrentWeather();
       const temp = Math.round(w.main.temp);
       const feels = Math.round(w.main.feels_like);
       const desc = w.weather[0].description;
+      const icon = w.weather[0].icon;
       const main = w.weather[0].main;
-      const emoji = getWeatherEmoji(main);
 
       let solarTip = "🌍 Normāli apstākļi saules paneļiem";
       if (main === "Clear") solarTip = "☀️ Lieliska diena saules paneļiem!";
@@ -244,15 +199,14 @@
       else if (main === "Rain") solarTip = "🌧️ Zema ražība (lietus)";
       else if (main === "Snow") solarTip = "❄️ Notīri paneļus (sniegs)";
 
-      const demoWarning = DEMO_MODE ? `<div style="color:#d97706;font-size:0.8rem;margin-top:8px;">⚠️ Demo režīms - ievadi savu API atslēgu!</div>` : '';
-
       container.innerHTML = `
         <div class="weather-big">
-          <div class="weather-icon">${emoji}</div>
+          <div class="weather-icon">
+            <img src="${getWeatherIconUrl(icon)}" alt="${desc}" style="width:60px;height:60px;">
+          </div>
           <div class="temp">${temp}°C</div>
           <div class="desc">
             <strong>${desc.charAt(0).toUpperCase() + desc.slice(1)}</strong><br>${solarTip}
-            ${demoWarning}
           </div>
         </div>
         <div style="margin-left:auto;font-size:0.9rem;">
@@ -267,11 +221,13 @@
           ❌ Laikapstākļi neielādējās.<br>
           <small>${String(err.message || err)}</small>
         </div>`;
+      showDebug("Laikapstākļu kļūda: " + (err.message || err));
     }
   }
 
   async function render3Hourly() {
     const container = $('hourly3h');
+    container.innerHTML = `<div class="loading">⏳ Ielādē prognozi…</div>`;
 
     try {
       const f = await fetchForecast();
@@ -280,34 +236,35 @@
         const t = new Date(item.dt * 1000);
         const hh = String(t.getHours()).padStart(2,'0');
         const temp = Math.round(item.main.temp);
-        const main = item.weather[0].main;
+        const icon = item.weather[0].icon;
         const desc = item.weather[0].description;
-        const emoji = getWeatherEmoji(main);
 
         return `
           <div class="hour-item">
             <div>${hh}:00</div>
-            <div style="font-size:1.5rem;">${emoji}</div>
+            <div><img src="${getWeatherIconUrl(icon)}" alt="${desc}" style="width:40px;height:40px;"></div>
             <div>${temp}°C</div>
             <small>${desc.substring(0, 18)}</small>
           </div>`;
       }).join('');
     } catch (err) {
-      container.innerHTML = `<div class="error-message">❌ Nevar ielādēt prognozi</div>`;
+      container.innerHTML = `<div class="error-message">❌ Nevar ielādēt stundu prognozi<br><small>${err.message || err}</small></div>`;
+      showDebug("Prognozes kļūda: " + (err.message || err));
     }
   }
 
   async function renderThreeDays() {
     const container = $('threeDaysForecast');
+    container.innerHTML = `<div class="loading">📅 Ielādē dienu prognozi…</div>`;
 
     try {
       const f = await fetchForecast();
       const daily = {};
       f.list.forEach(item => {
         const d = new Date(item.dt * 1000).toLocaleDateString('lv-LV');
-        daily[d] ??= { temps: [], icons: [], mains: [] };
+        if (!daily[d]) daily[d] = { temps: [], icons: [] };
         daily[d].temps.push(item.main.temp);
-        daily[d].mains.push(item.weather[0].main);
+        daily[d].icons.push(item.weather[0].icon);
       });
 
       const days = Object.keys(daily).slice(1,4);
@@ -317,18 +274,17 @@
         const data = daily[d];
         const minT = Math.round(Math.min(...data.temps));
         const maxT = Math.round(Math.max(...data.temps));
-        const main = data.mains[Math.floor(data.mains.length/2)];
-        const emoji = getWeatherEmoji(main);
-
+        const icon = data.icons[Math.floor(data.icons.length/2)];
         return `
           <div class="day-card">
             <strong>${labels[i]}</strong>
-            <div style="font-size:2rem;">${emoji}</div>
+            <div><img src="${getWeatherIconUrl(icon)}" alt="weather" style="width:50px;height:50px;"></div>
             <div>${maxT}° / ${minT}°</div>
           </div>`;
       }).join('');
     } catch (err) {
-      container.innerHTML = `<div class="error-message">❌ Nevar ielādēt dienu prognozi</div>`;
+      container.innerHTML = `<div class="error-message">❌ Nevar ielādēt 3 dienu prognozi<br><small>${err.message || err}</small></div>`;
+      showDebug("3 dienu kļūda: " + (err.message || err));
     }
   }
 
@@ -360,16 +316,13 @@
   }
 
   // ==========================================
-  // GALERIJA (bez Google Photos - izmanto Picsum)
+  // GALERIJA (Picsum demo attēli)
   // ==========================================
   function loadGallery() {
     const container = $('googlePhotosContainer');
     const imageIds = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
     
     container.innerHTML = `
-      <div class="warning-message" style="margin-bottom:15px;">
-        ℹ️ Rādu demo attēlus. Lai pievienotu savus, aizvieto šo funkciju ar savu attēlu URL sarakstu.
-      </div>
       <div class="gallery-grid">
         ${imageIds.map((id, i) => `
           <div class="gallery-item">
