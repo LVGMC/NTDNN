@@ -10,7 +10,7 @@
       box-sizing: border-box;
       font-family: system-ui, 'Segoe UI', 'Inter', sans-serif;
     }
-
+    
     body {
       background: linear-gradient(145deg, #e0f2fe 0%, #bae6fd 100%);
       min-height: 100vh;
