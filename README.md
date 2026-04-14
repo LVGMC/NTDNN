@@ -70,7 +70,6 @@
     .error-message { background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; border-radius: 1rem; margin: 20px 0; color: #991b1b; }
     .debug { margin-top: 12px; font-size: 0.85rem; color: #111827; background: rgba(0,0,0,0.05); padding: 10px 12px; border-radius: 12px; white-space: pre-wrap; }
 
-    /* ✅ Ja tu gribi, lai "kreisā puse" vienmēr paliek pa kreisi arī šaurā ekrānā, IZŅEM šo media query */
     @media (max-width: 780px) {
       .dashboard { flex-direction: column; }
       .weekly-plan { width: 100%; }
@@ -87,11 +86,9 @@
 
   <div class="dashboard">
 
-    <!-- ✅ Kreisais panelis ir ŠEIT un vienmēr redzams -->
+    <!-- Kreisais panelis -->
     <div class="weekly-plan">
       <h2>📋 Nedēļas plāns</h2>
-
-      <!-- ✅ Fallback saturs (ja JS nokrīt, tu vismaz redzi paneli) -->
       <div class="plan-list" id="weeklyPlanList">
         <div class="plan-day"><strong>Pirmdiena</strong><p>🧹 Saules paneļu tīrīšana un pārbaude</p></div>
         <div class="plan-day"><strong>Otrdiena</strong><p>🔋 Bateriju uzlādes optimizācija</p></div>
@@ -151,6 +148,7 @@
     if (!el) return;
     el.style.display = 'block';
     el.textContent = msg;
+    console.log(msg);
   }
 
   window.addEventListener('error', (e) => {
@@ -182,7 +180,6 @@
 
   // ============ LAIKAPSTĀKĻI ============
   async function fetchCurrentWeather() {
-    // ✅ te obligāti jābūt "&", nevis "&amp;"
     const url = `https://api.openweathermap.org/data/2.5/weather?lat=${LAT}&lon=${LON}&appid=${API_KEY}&units=metric&lang=lv`;
     return await fetchJson(url);
   }
@@ -213,7 +210,7 @@
       container.innerHTML = `
         <div class="weather-big">
           <div class="weather-icon">
-            <imgtWeatherIconUrl(icon)}
+            <img src="${getWeatherIconUrl(icon)}" alt="${desc}" style="width:60px;height:60px;">
           </div>
           <div class="temp">${temp}°C</div>
           <div class="desc">
@@ -253,7 +250,9 @@
         return `
           <div class="hour-item">
             <div>${hh}:00</div>
-            <div><img src="${getWeatherIconUrl(icon)}" alt="${desc}" style="width:40px;height:40pxall>${desc.substring(0, 18)}</small>
+            <div><img src="${getWeatherIconUrl(icon)}" alt="${desc}" style="width:40px;height:40px;"></div>
+            <div>${temp}°C</div>
+            <small>${desc.substring(0, 18)}</small>
           </div>`;
       }).join('');
     } catch (err) {
@@ -287,7 +286,7 @@
         return `
           <div class="day-card">
             <strong>${labels[i]}</strong>
-            <div><imgtWeatherIconUrl(icon)}</div>
+            <div><img src="${getWeatherIconUrl(icon)}" alt="weather" style="width:50px;height:50px;"></div>
             <div>${maxT}° / ${minT}°</div>
           </div>`;
       }).join('');
@@ -328,7 +327,6 @@
     container.innerHTML = `<div class="loading">🔄 Mēģinu ielādēt Google foto albumu…</div>`;
 
     try {
-      // Best effort: bieži Google bloķē / proxy limitē — tāpēc obligāts fallback
       const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(GOOGLE_ALBUM_URL);
       const res = await fetch(proxyUrl, { cache: "no-store" });
       const data = await res.json();
@@ -346,16 +344,23 @@
           ${currentImageUrls.map((url, i) => `
             <div class="gallery-item" onclick="window.open('${GOOGLE_ALBUM_URL}','_blank')">
               <img src="${url}" alt="Foto ${i+1}" loading="lazy"
-                   onerror="this.src='https://picsum.photos/400/300?random=${      container.innerHTML = `
+                   onerror="this.src='https://picsum.photos/400/300?random=${i}'">
+              <span>Foto ${i+1}</span>
+            </div>
+          `).join('')}
+        </div>`;
+    } catch (err) {
+      container.innerHTML = `
         <div class="error-message">
-          ⚠️ Google foto albums nav ielādējams ar “scrape” metodi (bieži CORS/Google aizsardzība).<br>
+          ⚠️ Google foto albums nav ielādējams ar "scrape" metodi (bieži CORS/Google aizsardzība).<br>
           <small>${String(err.message || err)}</small><br><br>
           <small>Rādu fallback attēlus:</small>
         </div>
         <div class="gallery-grid">
           ${[29,30,116,155,158,169].map((id,i)=>`
             <div class="gallery-item">
-              <img src="https://picsum.photos/id/${id}/400/300" alt="Fallback ${es tēmas foto</span>
+              <img src="https://picsum.photos/id/${id}/400/300" alt="Fallback ${i+1}">
+              <span>Demo foto ${i+1}</span>
             </div>
           `).join('')}
         </div>`;
